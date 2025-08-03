@@ -104,7 +104,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 🎛️ App UI
-st.title("📺 YouTube Transcript + SEO Info 111")
+st.title("📺 YouTube Transcript + SEO Info")
 
 with st.form("url_form"):
     url = st.text_input("Enter YouTube Video URL")
