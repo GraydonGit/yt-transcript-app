@@ -31,44 +31,48 @@ def get_video_id(url):
 def extract_transcript_alternative(video_id):
     """Try alternative methods to extract transcript when standard API fails"""
     
-    # Method 1: Try with different user agents to bypass blocking
-    user_agents = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    # Method 1: Try with delays and different approaches
+    alternative_approaches = [
+        # Try with different language combinations
+        lambda vid: YouTubeTranscriptApi.get_transcript(vid, languages=['en-US', 'en', 'en-GB']),
+        lambda vid: YouTubeTranscriptApi.get_transcript(vid, languages=['en']),
+        lambda vid: YouTubeTranscriptApi.get_transcript(vid, languages=['en-US']),
+        # Try without specifying languages
+        lambda vid: YouTubeTranscriptApi.get_transcript(vid),
     ]
     
-    for user_agent in user_agents:
+    for i, approach in enumerate(alternative_approaches):
         try:
-            # Add delay to avoid rate limiting
-            time.sleep(random.uniform(1, 3))
+            # Add progressive delays
+            if i > 0:
+                time.sleep(random.uniform(2, 5))
             
-            # Try to modify the request headers (this is experimental)
-            import youtube_transcript_api._api as api
-            original_get = requests.get
-            
-            def custom_get(*args, **kwargs):
-                kwargs['headers'] = kwargs.get('headers', {})
-                kwargs['headers']['User-Agent'] = user_agent
-                return original_get(*args, **kwargs)
-            
-            # Temporarily replace requests.get
-            requests.get = custom_get
-            
-            # Try the transcript extraction
-            transcript = YouTubeTranscriptApi.get_transcript(video_id)
-            
-            # Restore original requests.get
-            requests.get = original_get
+            # Try the approach
+            transcript = approach(video_id)
             
             if transcript:
                 formatter = TextFormatter()
                 return formatter.format_transcript(transcript)
                 
         except Exception as e:
-            # Restore original requests.get in case of error
-            requests.get = original_get
             continue
+    
+    # Method 2: Try using list_transcripts with more patience
+    try:
+        time.sleep(random.uniform(3, 6))
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        
+        # Try to get any available transcript
+        for transcript in transcript_list:
+            try:
+                transcript_data = transcript.fetch()
+                formatter = TextFormatter()
+                return f"✅ Found transcript in {transcript.language}:\n\n" + formatter.format_transcript(transcript_data)
+            except:
+                continue
+                
+    except Exception as e:
+        pass
     
     return None
 
