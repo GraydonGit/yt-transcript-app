@@ -1,13 +1,13 @@
 import streamlit as st
 import nltk
 
-from youtube_transcript_api import get_transcript
+from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
 from yt_dlp import YoutubeDL
 from rake_nltk import Rake
 from urllib.parse import urlparse, parse_qs
 
-# 💡 Safely ensure NLTK resources are available
+# 💡 Ensure NLTK resources are available
 def ensure_nltk_ready():
     for resource in ["punkt", "stopwords"]:
         try:
@@ -27,7 +27,7 @@ def get_video_id(url):
 # 📜 Get transcript (if available)
 def extract_transcript(video_id):
     try:
-        transcript = get_transcript(video_id)
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
         formatter = TextFormatter()
         return formatter.format_transcript(transcript)
     except Exception as e:
@@ -35,16 +35,7 @@ def extract_transcript(video_id):
 
 # 🧠 Extract keywords
 def extract_keywords(text, num=10):
-    try:
-        nltk.data.find("tokenizers/punkt")
-    except LookupError:
-        nltk.download("punkt", quiet=True)
-
-    try:
-        nltk.data.find("corpora/stopwords")
-    except LookupError:
-        nltk.download("stopwords", quiet=True)
-
+    ensure_nltk_ready()
     rake = Rake()
     rake.extract_keywords_from_text(text)
     return rake.get_ranked_phrases()[:num]
