@@ -31,15 +31,23 @@ def extract_keywords(text, num=10):
     rake.extract_keywords_from_text(text)
     return rake.get_ranked_phrases()[:num]
 
+import yt_dlp
+
 def get_metadata(url):
-    yt = YouTube(url)
-    return {
-        "Title": yt.title,
-        "Views": yt.views,
-        "Length (sec)": yt.length,
-        "Publish Date": yt.publish_date,
-        "Description": yt.description[:300] + "..." if yt.description else "No description available"
+    ydl_opts = {
+        'quiet': True,
+        'skip_download': True,
     }
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+        return {
+            "Title": info.get("title"),
+            "Views": info.get("view_count"),
+            "Length (sec)": info.get("duration"),
+            "Publish Date": info.get("upload_date"),
+            "Description": info.get("description", "")[:300] + "..." if info.get("description") else "No description available"
+        }
 
 st.set_page_config(page_title="YouTube Transcript & SEO Tool", layout="centered")
 st.title("📺 YouTube Transcript + SEO Info")
