@@ -27,10 +27,47 @@ def get_video_id(url):
 # 📜 Get transcript (if available)
 def extract_transcript(video_id):
     try:
-        # Try to get transcript with better error handling
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        formatter = TextFormatter()
-        return formatter.format_transcript(transcript)
+        # Try multiple approaches to get transcript
+        
+        # Approach 1: Try default (usually auto-generated English)
+        try:
+            transcript = YouTubeTranscriptApi.get_transcript(video_id)
+            formatter = TextFormatter()
+            return formatter.format_transcript(transcript)
+        except Exception as e1:
+            pass
+        
+        # Approach 2: Try with specific language codes
+        for lang_codes in [['en'], ['en-US'], ['en-GB'], ['en-CA'], ['en-AU']]:
+            try:
+                transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=lang_codes)
+                formatter = TextFormatter()
+                return formatter.format_transcript(transcript)
+            except Exception as e2:
+                continue
+        
+        # Approach 3: Try to list available transcripts and use any English one
+        try:
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            
+            # Try to find any English transcript (manual or auto-generated)
+            for transcript in transcript_list:
+                if transcript.language_code.startswith('en'):
+                    transcript_data = transcript.fetch()
+                    formatter = TextFormatter()
+                    return formatter.format_transcript(transcript_data)
+            
+            # If no English, try the first available transcript
+            for transcript in transcript_list:
+                transcript_data = transcript.fetch()
+                formatter = TextFormatter()
+                return f"⚠️ Using {transcript.language} transcript:\n\n" + formatter.format_transcript(transcript_data)
+                
+        except Exception as e3:
+            pass
+        
+        # If all approaches fail, return helpful error
+        return f"🚨 Could not retrieve transcript for video ID: {video_id}. The video may have restricted access or no supported transcript format."
             
     except Exception as e:
         error_msg = str(e).lower()
