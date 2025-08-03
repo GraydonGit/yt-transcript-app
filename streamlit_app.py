@@ -27,33 +27,11 @@ def get_video_id(url):
 # 📜 Get transcript (if available)
 def extract_transcript(video_id):
     try:
-        # Based on the actual youtube-transcript-api, the correct pattern is:
-        # YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
-        # But since get_transcript doesn't exist, let's try the static method approach
-        
-        try:
-            # Try the most common working pattern for this API
-            from youtube_transcript_api import YouTubeTranscriptApi as YTAPI
-            transcript_list = YTAPI.get_transcript(video_id, languages=['en', 'en-US'])
-            formatter = TextFormatter()
-            return formatter.format_transcript(transcript_list)
-        except AttributeError:
-            # If get_transcript doesn't work, try alternative import pattern
-            try:
-                from youtube_transcript_api.api import YouTubeTranscriptApi as API
-                transcript_list = API.get_transcript(video_id)
-                formatter = TextFormatter()
-                return formatter.format_transcript(transcript_list)
-            except (ImportError, AttributeError):
-                # Last resort: try the fetch method with correct signature
-                try:
-                    # Maybe fetch is an instance method
-                    api_instance = YouTubeTranscriptApi()
-                    transcript_list = api_instance.fetch(video_id)
-                    formatter = TextFormatter()
-                    return formatter.format_transcript(transcript_list)
-                except:
-                    return "🚨 Unable to retrieve transcript with any available method. The API may have changed significantly."
+        # Use the official documented approach for youtube-transcript-api
+        # This is the standard way according to the official documentation
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        formatter = TextFormatter()
+        return formatter.format_transcript(transcript)
             
     except Exception as e:
         return f"🚨 Error retrieving transcript: {str(e)}"
