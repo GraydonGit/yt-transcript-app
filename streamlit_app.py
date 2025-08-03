@@ -137,6 +137,9 @@ st.markdown("""
 # 🎛️ App UI
 st.title("📺 YouTube Transcript + SEO Info")
 
+# Add notice about potential limitations
+st.info("📋 **Note**: Due to YouTube's access restrictions, transcript extraction may be limited on cloud platforms. For best results, run this app locally.")
+
 with st.form("url_form"):
     url = st.text_input("Enter YouTube Video URL")
     submitted = st.form_submit_button("Get Video Info")
@@ -154,12 +157,38 @@ if submitted and url:
 
         st.subheader("🧠 Top Keywords")
         transcript = extract_transcript(video_id)
-        keywords = extract_keywords(transcript)
-
-        if keywords:
-            st.write(", ".join(keywords))
+        
+        # Check if transcript extraction failed due to restrictions
+        if transcript.startswith("🚨"):
+            st.error(transcript)
+            
+            # Offer manual input as fallback
+            st.subheader("📝 Manual Transcript Input (Fallback)")
+            st.info("💡 **Workaround**: You can manually copy-paste the transcript from YouTube and analyze it here.")
+            
+            manual_transcript = st.text_area(
+                "Paste transcript text here:",
+                placeholder="Copy the transcript from YouTube and paste it here to extract keywords...",
+                height=200
+            )
+            
+            if manual_transcript.strip():
+                st.subheader("🧠 Top Keywords (from manual input)")
+                manual_keywords = extract_keywords(manual_transcript)
+                if manual_keywords:
+                    st.write(", ".join(manual_keywords))
+                else:
+                    st.info("No keywords found in the provided text.")
+                    
+                st.subheader("📝 Processed Transcript")
+                st.text_area("Your transcript:", manual_transcript, height=300)
         else:
-            st.info("No keywords found in this transcript.")
+            # Normal flow when transcript extraction works
+            keywords = extract_keywords(transcript)
+            if keywords:
+                st.write(", ".join(keywords))
+            else:
+                st.info("No keywords found in this transcript.")
 
-        st.subheader("📝 Transcript")
-        st.text_area("Copyable Transcript", transcript, height=400)
+            st.subheader("📝 Transcript")
+            st.text_area("Copyable Transcript", transcript, height=400)
