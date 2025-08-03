@@ -67,13 +67,19 @@ def extract_transcript(video_id):
             pass
         
         # If all approaches fail, return helpful error
-        return f"🚨 Could not retrieve transcript for video ID: {video_id}. The video may have restricted access or no supported transcript format."
+        return f"🚨 Could not retrieve transcript for video ID: {video_id}. This may be due to:\n" + \
+               "• YouTube API access restrictions (403 Forbidden)\n" + \
+               "• Geographic/IP blocking on Streamlit Cloud\n" + \
+               "• Rate limiting or policy changes\n" + \
+               "• Video has restricted transcript access"
             
     except Exception as e:
         error_msg = str(e).lower()
         
         # Handle specific error cases
-        if "no element found" in error_msg or "line 1, column 0" in error_msg:
+        if "403" in error_msg or "forbidden" in error_msg:
+            return "🚨 Access Forbidden (403): YouTube is blocking transcript access from this server. This is likely due to Streamlit Cloud IP restrictions or rate limiting."
+        elif "no element found" in error_msg or "line 1, column 0" in error_msg:
             return "🚨 No transcript available for this video. The video may not have captions enabled or may be restricted."
         elif "could not retrieve a transcript" in error_msg:
             return "🚨 Transcript not available. This video may not have captions or may be private/restricted."
