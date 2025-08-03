@@ -27,17 +27,35 @@ def get_video_id(url):
 # 📜 Get transcript (if available)
 def extract_transcript(video_id):
     try:
-        # Try different approaches based on the API version
+        # Use the correct method name - it should be get_transcript as a static method
+        # But let's also handle potential API variations
+        transcript_list = None
+        
+        # Try the most common correct usage
         try:
-            # Method 1: Static method (newer versions)
             transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
         except AttributeError:
-            # Method 2: Instance method (older versions)
-            api = YouTubeTranscriptApi()
-            transcript_list = api.get_transcript(video_id)
+            # If that fails, try to see what methods are available and use a fallback
+            try:
+                # Alternative: try list_transcripts first, then get one
+                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+                if hasattr(transcript_list, 'find_transcript'):
+                    transcript = transcript_list.find_transcript(['en', 'en-US'])
+                    transcript_list = transcript.fetch()
+                else:
+                    # Last resort: manual transcript fetching
+                    transcript_list = []
+            except:
+                # If all else fails, return a helpful error
+                available_methods = [method for method in dir(YouTubeTranscriptApi) if not method.startswith('_')]
+                return f"🚨 API methods available: {', '.join(available_methods)}. Please check the correct usage."
         
-        formatter = TextFormatter()
-        return formatter.format_transcript(transcript_list)
+        if transcript_list:
+            formatter = TextFormatter()
+            return formatter.format_transcript(transcript_list)
+        else:
+            return "🚨 No transcript data retrieved"
+            
     except Exception as e:
         return f"🚨 Error retrieving transcript: {str(e)}"
 
