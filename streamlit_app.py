@@ -6,8 +6,17 @@ from rake_nltk import Rake
 import re
 
 def get_video_id(url):
-    match = re.search(r"v=([^&]+)", url)
-    return match.group(1) if match else None
+    try:
+        # Handle full YouTube URL (watch?v=...)
+        if "youtube.com" in url:
+            parsed_url = urlparse(url)
+            query = parse_qs(parsed_url.query)
+            return query["v"][0] if "v" in query else None
+        # Handle short youtu.be link
+        elif "youtu.be" in url:
+            return url.split("/")[-1].split("?")[0]
+    except Exception:
+        return None
 
 def extract_transcript(video_id):
     try:
