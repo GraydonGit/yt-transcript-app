@@ -6,26 +6,28 @@ from youtube_transcript_api.formatters import TextFormatter
 from yt_dlp import YoutubeDL
 from rake_nltk import Rake
 from urllib.parse import urlparse, parse_qs
-import re
 
-# 📌 Download required NLTK resources at runtime (handles Streamlit Cloud resets)
-def ensure_nltk_data():
-    nltk.download("stopwords", quiet=True)
-    nltk.download("punkt", quiet=True)
-
-# ✅ Support both youtu.be and youtube.com links
-def get_video_id(url):
+# 📌 Download NLTK data on demand
+def ensure_nltk_ready():
     try:
-        if "youtube.com" in url:
-            parsed_url = urlparse(url)
-            query = parse_qs(parsed_url.query)
-            return query["v"][0] if "v" in query else None
-        elif "youtu.be" in url:
-            return url.split("/")[-1].split("?")[0]
-    except Exception:
-        return None
+        nltk.data.find("tokenizers/punkt")
+    except LookupError:
+        nltk.download("punkt", quiet=True)
+    try:
+        nltk.data.find("corpora/stopwords")
+    except LookupError:
+        nltk.download("stopwords", quiet=True)
 
-# 🎬 Get transcript (if available)
+# 🔗 Support multiple YouTube link formats
+def get_video_id(url):
+    if "youtube.com" in url:
+        parsed = urlparse(url)
+        return parse_qs(parsed.query).get("v", [None])[0]
+    elif "youtu.be" in url:
+        return url.split("/")[-1].split("?")[0]
+    return None
+
+# 🎬 Get transcript
 def extract_transcript(video_id):
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
@@ -38,20 +40,16 @@ def extract_transcript(video_id):
     except Exception as e:
         return f"🚨 Error retrieving transcript: {str(e)}"
 
-# 🧠 Extract keywords after ensuring NLTK resources are ready
+# 🧠 Extract keywords
 def extract_keywords(text, num=10):
-    ensure_nltk_data()
+    ensure_nltk_ready()
     rake = Rake()
     rake.extract_keywords_from_text(text)
     return rake.get_ranked_phrases()[:num]
 
-# 📊 Get video metadata using yt-dlp
+# 📊 Get video metadata
 def get_metadata(url):
-    ydl_opts = {
-        'quiet': True,
-        'skip_download': True,
-    }
-
+    ydl_opts = {'quiet': True, 'skip_download': True}
     with YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
         return {
@@ -62,13 +60,34 @@ def get_metadata(url):
             "Description": info.get("description", "")[:300] + "..." if info.get("description") else "No description available"
         }
 
-# 🔷 Streamlit App UI
+# 🌙 Dark mode styling
 st.set_page_config(page_title="YouTube Transcript + SEO Tool", layout="centered")
+
+st.markdown("""
+    <style>
+    body {
+        background-color: #0e1117;
+        color: #ffffff;
+    }
+    .stTextInput > div > div > input,
+    .stTextArea textarea {
+        background-color: #1e222a;
+        color: white;
+    }
+    .stTextInput label, .stTextArea label {
+        color: white;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# 🧩 App interface
 st.title("📺 YouTube Transcript + SEO Info")
 
-url = st.text_input("Enter YouTube Video URL")
+with st.form("url_form"):
+    url = st.text_input("Enter YouTube Video URL")
+    submitted = st.form_submit_button("Get Video Info")
 
-if url:
+if submitted and url:
     video_id = get_video_id(url)
 
     if not video_id:
