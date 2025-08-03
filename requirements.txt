@@ -3,3 +3,5 @@ yt-dlp
 youtube-transcript-api==0.6.2
 rake-nltk
 nltk
+beautifulsoup4
+requests
