@@ -1,6 +1,5 @@
 import re
 import streamlit as st
-st.write("Using youtube-transcript-api version:", youtube_transcript_api.__version__)
 from youtube_transcript_api import (
     YouTubeTranscriptApi,
     TranscriptsDisabled,
@@ -26,6 +25,7 @@ def list_available_transcripts(video_id: str):
 # ------------------------------------------------------------------------------
 
 # UI
+st.write("Using youtube-transcript-api version:", youtube_transcript_api.__version__)
 st.title("📼 YouTube Transcript Viewer")
 url = st.text_input("Paste a YouTube link or video ID")
 lang_order = st.text_input("Preferred languages (comma-separated)", "en")
