@@ -1,9 +1,13 @@
 import streamlit as st
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled
+import nltk
+nltk.download("stopwords")
+
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound, VideoUnavailable
 from youtube_transcript_api.formatters import TextFormatter
-from pytube import YouTube
+from yt_dlp import YoutubeDL
 from rake_nltk import Rake
 import re
+from urllib.parse import urlparse, parse_qs
 
 def get_video_id(url):
     try:
@@ -17,10 +21,6 @@ def get_video_id(url):
             return url.split("/")[-1].split("?")[0]
     except Exception:
         return None
-
-from youtube_transcript_api._errors import (
-    NoTranscriptFound, TranscriptsDisabled, VideoUnavailable
-)
 
 def extract_transcript(video_id):
     try:
@@ -39,15 +39,13 @@ def extract_keywords(text, num=10):
     rake.extract_keywords_from_text(text)
     return rake.get_ranked_phrases()[:num]
 
-import yt_dlp
-
 def get_metadata(url):
     ydl_opts = {
         'quiet': True,
         'skip_download': True,
     }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+    with YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
         return {
             "Title": info.get("title"),
@@ -57,7 +55,7 @@ def get_metadata(url):
             "Description": info.get("description", "")[:300] + "..." if info.get("description") else "No description available"
         }
 
-st.set_page_config(page_title="YouTube Transcript & SEO Tool", layout="centered")
+st.set_page_config(page_title="YouTube Transcript + SEO Tool", layout="centered")
 st.title("📺 YouTube Transcript + SEO Info")
 
 url = st.text_input("Enter YouTube Video URL")
