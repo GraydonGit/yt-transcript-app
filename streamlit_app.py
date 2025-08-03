@@ -1,32 +1,31 @@
 import streamlit as st
 import nltk
-nltk.download("stopwords", quiet=True)
-nltk.download("punkt", quiet=True)
-
-# Force-load the tokenizer (prevents weird 'punkt_tab' errors)
-from nltk.tokenize import sent_tokenize
-sent_tokenize("Just initializing punkt.")
 
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound, VideoUnavailable
 from youtube_transcript_api.formatters import TextFormatter
 from yt_dlp import YoutubeDL
 from rake_nltk import Rake
-import re
 from urllib.parse import urlparse, parse_qs
+import re
 
+# 📌 Download required NLTK resources at runtime (handles Streamlit Cloud resets)
+def ensure_nltk_data():
+    nltk.download("stopwords", quiet=True)
+    nltk.download("punkt", quiet=True)
+
+# ✅ Support both youtu.be and youtube.com links
 def get_video_id(url):
     try:
-        # Handle full YouTube URL (watch?v=...)
         if "youtube.com" in url:
             parsed_url = urlparse(url)
             query = parse_qs(parsed_url.query)
             return query["v"][0] if "v" in query else None
-        # Handle short youtu.be link
         elif "youtu.be" in url:
             return url.split("/")[-1].split("?")[0]
     except Exception:
         return None
 
+# 🎬 Get transcript (if available)
 def extract_transcript(video_id):
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
@@ -39,11 +38,14 @@ def extract_transcript(video_id):
     except Exception as e:
         return f"🚨 Error retrieving transcript: {str(e)}"
 
+# 🧠 Extract keywords after ensuring NLTK resources are ready
 def extract_keywords(text, num=10):
+    ensure_nltk_data()
     rake = Rake()
     rake.extract_keywords_from_text(text)
     return rake.get_ranked_phrases()[:num]
 
+# 📊 Get video metadata using yt-dlp
 def get_metadata(url):
     ydl_opts = {
         'quiet': True,
@@ -60,6 +62,7 @@ def get_metadata(url):
             "Description": info.get("description", "")[:300] + "..." if info.get("description") else "No description available"
         }
 
+# 🔷 Streamlit App UI
 st.set_page_config(page_title="YouTube Transcript + SEO Tool", layout="centered")
 st.title("📺 YouTube Transcript + SEO Info")
 
