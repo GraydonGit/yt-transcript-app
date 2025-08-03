@@ -1,6 +1,5 @@
 streamlit
+yt-dlp
 youtube-transcript-api
-pytube
 rake-nltk
 nltk
-yt-dlp
