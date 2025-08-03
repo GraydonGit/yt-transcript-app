@@ -18,13 +18,21 @@ def get_video_id(url):
     except Exception:
         return None
 
+from youtube_transcript_api._errors import (
+    NoTranscriptFound, TranscriptsDisabled, VideoUnavailable
+)
+
 def extract_transcript(video_id):
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
         formatter = TextFormatter()
         return formatter.format_transcript(transcript)
-    except TranscriptsDisabled:
-        return "Transcript not available for this video."
+    except (NoTranscriptFound, TranscriptsDisabled):
+        return "⚠️ Transcript not available for this video."
+    except VideoUnavailable:
+        return "❌ This video is unavailable."
+    except Exception as e:
+        return f"🚨 Error retrieving transcript: {str(e)}"
 
 def extract_keywords(text, num=10):
     rake = Rake()
