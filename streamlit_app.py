@@ -7,18 +7,13 @@ from yt_dlp import YoutubeDL
 from rake_nltk import Rake
 from urllib.parse import urlparse, parse_qs
 
-# 📌 Download NLTK data on demand
+# 📌 Ensure NLTK data is downloaded
 def ensure_nltk_ready():
-    try:
-        nltk.data.find("tokenizers/punkt")
-    except LookupError:
-        nltk.download("punkt", quiet=True)
-    try:
-        nltk.data.find("corpora/stopwords")
-    except LookupError:
-        nltk.download("stopwords", quiet=True)
+    nltk.download("stopwords", quiet=True)
+    nltk.download("punkt", quiet=True)
+    nltk.download("punkt_tab", quiet=True)
 
-# 🔗 Support multiple YouTube link formats
+# 🔗 Extract video ID from YouTube URL
 def get_video_id(url):
     if "youtube.com" in url:
         parsed = urlparse(url)
@@ -27,7 +22,7 @@ def get_video_id(url):
         return url.split("/")[-1].split("?")[0]
     return None
 
-# 🎬 Get transcript
+# 📜 Get video transcript
 def extract_transcript(video_id):
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
@@ -40,14 +35,14 @@ def extract_transcript(video_id):
     except Exception as e:
         return f"🚨 Error retrieving transcript: {str(e)}"
 
-# 🧠 Extract keywords
+# 🧠 Extract keywords from transcript
 def extract_keywords(text, num=10):
     ensure_nltk_ready()
     rake = Rake()
     rake.extract_keywords_from_text(text)
     return rake.get_ranked_phrases()[:num]
 
-# 📊 Get video metadata
+# 📊 Fetch video metadata using yt-dlp
 def get_metadata(url):
     ydl_opts = {'quiet': True, 'skip_download': True}
     with YoutubeDL(ydl_opts) as ydl:
@@ -60,9 +55,8 @@ def get_metadata(url):
             "Description": info.get("description", "")[:300] + "..." if info.get("description") else "No description available"
         }
 
-# 🌙 Dark mode styling
+# 🌙 Dark theme styling
 st.set_page_config(page_title="YouTube Transcript + SEO Tool", layout="centered")
-
 st.markdown("""
     <style>
     body {
@@ -80,7 +74,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 🧩 App interface
+# 🎛️ User Interface
 st.title("📺 YouTube Transcript + SEO Info")
 
 with st.form("url_form"):
