@@ -20,7 +20,8 @@ def extract_video_id(url_or_id: str) -> str:
 
 @st.cache_data(show_spinner=False)
 def fetch_transcript(video_id: str, langs: list[str]):
-    return YouTubeTranscriptApi.get_transcripts(video_id, languages=langs)
+    from youtube_transcript_api import YouTubeTranscriptApi
+    return YouTubeTranscriptApi.get_transcript(video_id, languages=langs)
 
 @st.cache_data(show_spinner=False)
 def list_available_transcripts(video_id: str):
