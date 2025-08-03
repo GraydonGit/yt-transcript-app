@@ -1,1 +1,5 @@
 streamlit
+youtube-transcript-api
+pytube
+rake-nltk
+nltk
