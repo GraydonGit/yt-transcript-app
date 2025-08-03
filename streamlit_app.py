@@ -22,7 +22,7 @@ def extract_video_id(url_or_id: str) -> str:
 @st.cache_data(show_spinner=False)
 def fetch_transcript(video_id: str, langs: list[str]):
     # youtube-transcript-api prefers 'en' first if you give no list
-    return YouTubeTranscriptApi().fetch(video_id, languages=langs)  # :contentReference[oaicite:1]{index=1}
+    return YouTubeTranscriptApi.get_transcript(video_id, languages=langs)
 # -----------------------------------------------------------------------------
 
 st.title("YouTube Transcript Viewer")
