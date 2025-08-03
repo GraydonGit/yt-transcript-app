@@ -27,31 +27,33 @@ def get_video_id(url):
 # 📜 Get transcript (if available)
 def extract_transcript(video_id):
     try:
-        # Try the simplest approach first - maybe the API is different than expected
-        # Let's see what methods are actually available and try a direct approach
+        # Based on the actual youtube-transcript-api, the correct pattern is:
+        # YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
+        # But since get_transcript doesn't exist, let's try the static method approach
         
-        # Method 1: Try direct fetch if it exists
         try:
-            transcript_data = YouTubeTranscriptApi.fetch(video_id)
+            # Try the most common working pattern for this API
+            from youtube_transcript_api import YouTubeTranscriptApi as YTAPI
+            transcript_list = YTAPI.get_transcript(video_id, languages=['en', 'en-US'])
             formatter = TextFormatter()
-            return formatter.format_transcript(transcript_data)
+            return formatter.format_transcript(transcript_list)
         except AttributeError:
-            # Method 2: Try list method
+            # If get_transcript doesn't work, try alternative import pattern
             try:
-                transcript_list_obj = YouTubeTranscriptApi.list(video_id)
-                # If list works, try to get the first transcript
-                if hasattr(transcript_list_obj, '__iter__'):
-                    for transcript in transcript_list_obj:
-                        if hasattr(transcript, 'fetch'):
-                            transcript_data = transcript.fetch()
-                            formatter = TextFormatter()
-                            return formatter.format_transcript(transcript_data)
-                        break
-                return "🚨 Could not fetch transcript data"
-            except AttributeError:
-                # Method 3: Show available methods for debugging
-                available_methods = [method for method in dir(YouTubeTranscriptApi) if not method.startswith('_')]
-                return f"🚨 Available API methods: {', '.join(available_methods)}. Please check documentation."
+                from youtube_transcript_api.api import YouTubeTranscriptApi as API
+                transcript_list = API.get_transcript(video_id)
+                formatter = TextFormatter()
+                return formatter.format_transcript(transcript_list)
+            except (ImportError, AttributeError):
+                # Last resort: try the fetch method with correct signature
+                try:
+                    # Maybe fetch is an instance method
+                    api_instance = YouTubeTranscriptApi()
+                    transcript_list = api_instance.fetch(video_id)
+                    formatter = TextFormatter()
+                    return formatter.format_transcript(transcript_list)
+                except:
+                    return "🚨 Unable to retrieve transcript with any available method. The API may have changed significantly."
             
     except Exception as e:
         return f"🚨 Error retrieving transcript: {str(e)}"
