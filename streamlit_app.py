@@ -27,34 +27,34 @@ def get_video_id(url):
 # 📜 Get transcript (if available)
 def extract_transcript(video_id):
     try:
-        # Use the correct method name - it should be get_transcript as a static method
-        # But let's also handle potential API variations
-        transcript_list = None
+        # Use the correct API pattern: list_transcripts -> find_transcript -> fetch
+        transcript_list_obj = YouTubeTranscriptApi.list_transcripts(video_id)
         
-        # Try the most common correct usage
+        # Try to find an English transcript first
         try:
-            transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
-        except AttributeError:
-            # If that fails, try to see what methods are available and use a fallback
+            transcript = transcript_list_obj.find_transcript(['en', 'en-US', 'en-GB'])
+        except:
+            # If no English transcript, try to find any manually created transcript
             try:
-                # Alternative: try list_transcripts first, then get one
-                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-                if hasattr(transcript_list, 'find_transcript'):
-                    transcript = transcript_list.find_transcript(['en', 'en-US'])
-                    transcript_list = transcript.fetch()
-                else:
-                    # Last resort: manual transcript fetching
-                    transcript_list = []
+                transcript = transcript_list_obj.find_manually_created_transcript(['en', 'en-US', 'en-GB'])
             except:
-                # If all else fails, return a helpful error
-                available_methods = [method for method in dir(YouTubeTranscriptApi) if not method.startswith('_')]
-                return f"🚨 API methods available: {', '.join(available_methods)}. Please check the correct usage."
+                # If no manually created, try generated transcript
+                try:
+                    transcript = transcript_list_obj.find_generated_transcript(['en', 'en-US', 'en-GB'])
+                except:
+                    # Last resort: get the first available transcript
+                    available_transcripts = list(transcript_list_obj)
+                    if available_transcripts:
+                        transcript = available_transcripts[0]
+                    else:
+                        return "🚨 No transcripts available for this video"
         
-        if transcript_list:
-            formatter = TextFormatter()
-            return formatter.format_transcript(transcript_list)
-        else:
-            return "🚨 No transcript data retrieved"
+        # Fetch the actual transcript data
+        transcript_data = transcript.fetch()
+        
+        # Format the transcript
+        formatter = TextFormatter()
+        return formatter.format_transcript(transcript_data)
             
     except Exception as e:
         return f"🚨 Error retrieving transcript: {str(e)}"
@@ -104,7 +104,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 🎛️ App UI
-st.title("📺 YouTube Transcript + SEO Info")
+st.title("📺 YouTube Transcript + SEO Info 111")
 
 with st.form("url_form"):
     url = st.text_input("Enter YouTube Video URL")
