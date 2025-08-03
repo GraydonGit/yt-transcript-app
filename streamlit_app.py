@@ -1,5 +1,6 @@
 import re
 import streamlit as st
+st.write("Using youtube-transcript-api version:", youtube_transcript_api.__version__)
 from youtube_transcript_api import (
     YouTubeTranscriptApi,
     TranscriptsDisabled,
