@@ -248,17 +248,16 @@ def extract_transcript(video_id):
         except Exception as e3:
             pass
         
-        # Try alternative methods before giving up
-        st.info("🔄 Trying alternative extraction methods...")
-        alternative_result = extract_transcript_alternative(video_id)
-        if alternative_result:
-            return alternative_result
-        
-        # Try HTML scraping as final attempt
-        st.info("🌐 Trying HTML scraping method...")
-        html_result = extract_transcript_from_html(video_id)
-        if html_result:
-            return html_result
+        # Try one simple alternative approach
+        try:
+            # Simple retry with delay
+            time.sleep(2)
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
+            if transcript:
+                formatter = TextFormatter()
+                return formatter.format_transcript(transcript)
+        except:
+            pass
         
         # If all approaches fail, return helpful error
         return f"🚨 Could not retrieve transcript for video ID: {video_id}. This may be due to:\n" + \
@@ -331,12 +330,56 @@ st.markdown("""
 # 🎛️ App UI
 st.title("📺 YouTube Transcript + SEO Info")
 
-# Add notice about potential limitations
-st.info("📋 **Note**: Due to YouTube's access restrictions, transcript extraction may be limited on cloud platforms. For best results, run this app locally.")
+# Add notice about potential limitations and instructions
+st.warning("⚠️ **Important**: YouTube restricts automated transcript access on cloud platforms like Streamlit Cloud. Use the manual input method below for best results.")
+
+with st.expander("📝 How to get YouTube transcripts manually", expanded=False):
+    st.markdown("""
+    **Step-by-step instructions:**
+    1. Go to your YouTube video
+    2. Click the **"..." (More)** button below the video
+    3. Click **"Show transcript"**
+    4. Copy the transcript text that appears
+    5. Paste it in the manual input box below
+    
+    This method works for any video with captions!
+    """)
+
+# Add standalone transcript analyzer
+st.subheader("🎯 Quick Transcript Analyzer")
+st.info("💡 **Tip**: You can use this section to analyze any transcript text, regardless of the video URL issues above.")
+
+manual_text = st.text_area(
+    "Paste any transcript or text here for keyword analysis:",
+    placeholder="Paste transcript text here to extract keywords immediately...",
+    height=150,
+    key="standalone_transcript"
+)
+
+if manual_text.strip():
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.subheader("🧠 Top Keywords")
+        standalone_keywords = extract_keywords(manual_text)
+        if standalone_keywords:
+            st.write(", ".join(standalone_keywords))
+        else:
+            st.info("No keywords found in the provided text.")
+    
+    with col2:
+        st.subheader("📊 Text Stats")
+        word_count = len(manual_text.split())
+        char_count = len(manual_text)
+        st.metric("Word Count", word_count)
+        st.metric("Character Count", char_count)
+
+st.divider()
+st.subheader("🔗 Video URL Analysis (Limited on Cloud)")
 
 with st.form("url_form"):
     url = st.text_input("Enter YouTube Video URL")
-    submitted = st.form_submit_button("Get Video Info")
+    submitted = st.form_submit_button("Try Automatic Extraction")
 
 if submitted and url:
     video_id = get_video_id(url)
