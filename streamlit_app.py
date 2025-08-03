@@ -1,11 +1,14 @@
 import streamlit as st
 import nltk
+import time
+import random
+import requests
+from urllib.parse import urlparse, parse_qs, quote
 
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
 from yt_dlp import YoutubeDL
 from rake_nltk import Rake
-from urllib.parse import urlparse, parse_qs
 
 # 💡 Ensure NLTK resources are available
 def ensure_nltk_ready():
@@ -22,6 +25,51 @@ def get_video_id(url):
         return parse_qs(parsed.query).get("v", [None])[0]
     elif "youtu.be" in url:
         return url.split("/")[-1].split("?")[0]
+    return None
+
+# 🔄 Alternative transcript extraction methods
+def extract_transcript_alternative(video_id):
+    """Try alternative methods to extract transcript when standard API fails"""
+    
+    # Method 1: Try with different user agents to bypass blocking
+    user_agents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    ]
+    
+    for user_agent in user_agents:
+        try:
+            # Add delay to avoid rate limiting
+            time.sleep(random.uniform(1, 3))
+            
+            # Try to modify the request headers (this is experimental)
+            import youtube_transcript_api._api as api
+            original_get = requests.get
+            
+            def custom_get(*args, **kwargs):
+                kwargs['headers'] = kwargs.get('headers', {})
+                kwargs['headers']['User-Agent'] = user_agent
+                return original_get(*args, **kwargs)
+            
+            # Temporarily replace requests.get
+            requests.get = custom_get
+            
+            # Try the transcript extraction
+            transcript = YouTubeTranscriptApi.get_transcript(video_id)
+            
+            # Restore original requests.get
+            requests.get = original_get
+            
+            if transcript:
+                formatter = TextFormatter()
+                return formatter.format_transcript(transcript)
+                
+        except Exception as e:
+            # Restore original requests.get in case of error
+            requests.get = original_get
+            continue
+    
     return None
 
 # 📜 Get transcript (if available)
@@ -65,6 +113,12 @@ def extract_transcript(video_id):
                 
         except Exception as e3:
             pass
+        
+        # Try alternative methods before giving up
+        st.info("🔄 Trying alternative extraction methods...")
+        alternative_result = extract_transcript_alternative(video_id)
+        if alternative_result:
+            return alternative_result
         
         # If all approaches fail, return helpful error
         return f"🚨 Could not retrieve transcript for video ID: {video_id}. This may be due to:\n" + \
