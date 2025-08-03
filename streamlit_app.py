@@ -39,97 +39,118 @@ def extract_transcript_from_html(video_id):
         
         # Set headers to mimic a real browser
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
             'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Cache-Control': 'max-age=0'
         }
         
-        # Make request to YouTube page
-        response = requests.get(youtube_url, headers=headers, timeout=10)
-        response.raise_for_status()
+        # Make request to YouTube page with timeout
+        response = requests.get(youtube_url, headers=headers, timeout=15)
+        if response.status_code != 200:
+            return None
         
-        # Parse HTML
-        soup = BeautifulSoup(response.content, 'html.parser')
+        html_content = response.text
         
-        # Look for transcript data in various places
+        # Look for transcript data in the HTML content using regex
         transcript_text = None
         
-        # Method 1: Look for transcript in script tags
-        scripts = soup.find_all('script')
-        for script in scripts:
-            if script.string and 'captionTracks' in script.string:
-                try:
-                    # Extract JSON data containing caption tracks
-                    script_content = script.string
-                    
-                    # Find caption tracks data
-                    caption_match = re.search(r'"captionTracks":\s*(\[.*?\])', script_content)
-                    if caption_match:
-                        caption_tracks = json.loads(caption_match.group(1))
-                        
-                        # Find English caption track
-                        for track in caption_tracks:
-                            if track.get('languageCode', '').startswith('en'):
-                                caption_url = track.get('baseUrl')
-                                if caption_url:
-                                    # Fetch the caption file
-                                    caption_response = requests.get(caption_url, headers=headers)
-                                    if caption_response.status_code == 200:
-                                        # Parse XML captions
-                                        caption_soup = BeautifulSoup(caption_response.content, 'xml')
-                                        texts = caption_soup.find_all('text')
+        # Method 1: Look for captionTracks in the HTML
+        caption_tracks_pattern = r'"captionTracks":\s*(\[.*?\])'
+        caption_match = re.search(caption_tracks_pattern, html_content, re.DOTALL)
+        
+        if caption_match:
+            try:
+                caption_tracks_str = caption_match.group(1)
+                # Fix common JSON issues
+                caption_tracks_str = re.sub(r'\\"', '"', caption_tracks_str)
+                caption_tracks = json.loads(caption_tracks_str)
+                
+                # Find English caption track
+                for track in caption_tracks:
+                    lang_code = track.get('languageCode', '')
+                    if lang_code.startswith('en') or lang_code == 'a.en':
+                        caption_url = track.get('baseUrl')
+                        if caption_url:
+                            # Fetch the caption file
+                            try:
+                                caption_response = requests.get(caption_url, headers=headers, timeout=10)
+                                if caption_response.status_code == 200:
+                                    # Parse XML captions
+                                    caption_content = caption_response.text
+                                    
+                                    # Extract text from XML using regex (more reliable than BeautifulSoup for this)
+                                    text_pattern = r'<text[^>]*>([^<]+)</text>'
+                                    text_matches = re.findall(text_pattern, caption_content)
+                                    
+                                    if text_matches:
+                                        # Clean and join the text
                                         transcript_parts = []
-                                        for text in texts:
-                                            if text.string:
-                                                # Clean up the text
-                                                clean_text = re.sub(r'<[^>]+>', '', text.string)
-                                                transcript_parts.append(clean_text.strip())
+                                        for text in text_matches:
+                                            # Decode HTML entities and clean
+                                            clean_text = text.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"').replace('&#39;', "'")
+                                            clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+                                            if clean_text:
+                                                transcript_parts.append(clean_text)
                                         
                                         if transcript_parts:
                                             transcript_text = ' '.join(transcript_parts)
                                             break
-                except Exception as e:
-                    continue
+                            except Exception as e:
+                                continue
+            except Exception as e:
+                pass
         
-        # Method 2: Look for automatic captions in ytInitialPlayerResponse
+        # Method 2: Look for ytInitialPlayerResponse
         if not transcript_text:
-            for script in scripts:
-                if script.string and 'ytInitialPlayerResponse' in script.string:
-                    try:
-                        # Extract ytInitialPlayerResponse
-                        match = re.search(r'var ytInitialPlayerResponse = ({.*?});', script.string)
-                        if match:
-                            player_response = json.loads(match.group(1))
-                            
-                            # Navigate to captions
-                            captions = player_response.get('captions', {})
-                            caption_tracks = captions.get('playerCaptionsTracklistRenderer', {}).get('captionTracks', [])
-                            
-                            for track in caption_tracks:
-                                if track.get('languageCode', '').startswith('en'):
-                                    caption_url = track.get('baseUrl')
-                                    if caption_url:
-                                        # Fetch and parse captions (same as above)
-                                        caption_response = requests.get(caption_url, headers=headers)
-                                        if caption_response.status_code == 200:
-                                            caption_soup = BeautifulSoup(caption_response.content, 'xml')
-                                            texts = caption_soup.find_all('text')
+            player_response_pattern = r'var ytInitialPlayerResponse\s*=\s*({.*?});'
+            player_match = re.search(player_response_pattern, html_content, re.DOTALL)
+            
+            if player_match:
+                try:
+                    player_response_str = player_match.group(1)
+                    player_response = json.loads(player_response_str)
+                    
+                    # Navigate to captions
+                    captions = player_response.get('captions', {})
+                    caption_tracks = captions.get('playerCaptionsTracklistRenderer', {}).get('captionTracks', [])
+                    
+                    for track in caption_tracks:
+                        lang_code = track.get('languageCode', '')
+                        if lang_code.startswith('en') or lang_code == 'a.en':
+                            caption_url = track.get('baseUrl')
+                            if caption_url:
+                                try:
+                                    caption_response = requests.get(caption_url, headers=headers, timeout=10)
+                                    if caption_response.status_code == 200:
+                                        caption_content = caption_response.text
+                                        text_pattern = r'<text[^>]*>([^<]+)</text>'
+                                        text_matches = re.findall(text_pattern, caption_content)
+                                        
+                                        if text_matches:
                                             transcript_parts = []
-                                            for text in texts:
-                                                if text.string:
-                                                    clean_text = re.sub(r'<[^>]+>', '', text.string)
-                                                    transcript_parts.append(clean_text.strip())
+                                            for text in text_matches:
+                                                clean_text = text.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"').replace('&#39;', "'")
+                                                clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+                                                if clean_text:
+                                                    transcript_parts.append(clean_text)
                                             
                                             if transcript_parts:
                                                 transcript_text = ' '.join(transcript_parts)
                                                 break
-                    except Exception as e:
-                        continue
+                                except Exception as e:
+                                    continue
+                except Exception as e:
+                    pass
         
-        if transcript_text:
-            return f"🌐 Extracted from HTML: {transcript_text}"
+        if transcript_text and len(transcript_text.strip()) > 10:
+            return f"🌐 Extracted from HTML: {transcript_text[:2000]}{'...' if len(transcript_text) > 2000 else ''}"
         else:
             return None
             
