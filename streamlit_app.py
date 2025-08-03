@@ -27,14 +27,25 @@ def get_video_id(url):
 # 📜 Get transcript (if available)
 def extract_transcript(video_id):
     try:
-        # Use the official documented approach for youtube-transcript-api
-        # This is the standard way according to the official documentation
+        # Try to get transcript with better error handling
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
         formatter = TextFormatter()
         return formatter.format_transcript(transcript)
             
     except Exception as e:
-        return f"🚨 Error retrieving transcript: {str(e)}"
+        error_msg = str(e).lower()
+        
+        # Handle specific error cases
+        if "no element found" in error_msg or "line 1, column 0" in error_msg:
+            return "🚨 No transcript available for this video. The video may not have captions enabled or may be restricted."
+        elif "could not retrieve a transcript" in error_msg:
+            return "🚨 Transcript not available. This video may not have captions or may be private/restricted."
+        elif "video is unavailable" in error_msg:
+            return "🚨 Video is unavailable or private. Please try a different video."
+        elif "transcript disabled" in error_msg:
+            return "🚨 Transcripts are disabled for this video."
+        else:
+            return f"🚨 Error retrieving transcript: {str(e)}"
 
 # 🧠 Extract keywords
 def extract_keywords(text, num=10):
