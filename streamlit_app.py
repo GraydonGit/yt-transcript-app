@@ -1,8 +1,11 @@
 import streamlit as st
 import nltk
+nltk.download("stopwords", quiet=True)
+nltk.download("punkt", quiet=True)
 
-nltk.download("stopwords")
-nltk.download("punkt")
+# Force-load the tokenizer (prevents weird 'punkt_tab' errors)
+from nltk.tokenize import sent_tokenize
+sent_tokenize("Just initializing punkt.")
 
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound, VideoUnavailable
 from youtube_transcript_api.formatters import TextFormatter
