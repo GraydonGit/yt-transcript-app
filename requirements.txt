@@ -5,3 +5,4 @@ rake-nltk
 nltk
 beautifulsoup4
 requests
+youtube-transcript-api
