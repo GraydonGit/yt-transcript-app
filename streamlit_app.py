@@ -7,13 +7,15 @@ from yt_dlp import YoutubeDL
 from rake_nltk import Rake
 from urllib.parse import urlparse, parse_qs
 
-# 📌 Ensure NLTK data is downloaded
+# 💡 Safely ensure NLTK resources are available
 def ensure_nltk_ready():
-    nltk.download("stopwords", quiet=True)
-    nltk.download("punkt", quiet=True)
-    nltk.download("punkt_tab", quiet=True)
+    for resource in ["punkt", "stopwords"]:
+        try:
+            nltk.data.find(f"tokenizers/{resource}" if resource == "punkt" else f"corpora/{resource}")
+        except LookupError:
+            nltk.download(resource, quiet=True)
 
-# 🔗 Extract video ID from YouTube URL
+# 🔗 Extract video ID
 def get_video_id(url):
     if "youtube.com" in url:
         parsed = urlparse(url)
@@ -22,7 +24,7 @@ def get_video_id(url):
         return url.split("/")[-1].split("?")[0]
     return None
 
-# 📜 Get video transcript
+# 📜 Get transcript (if available)
 def extract_transcript(video_id):
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
@@ -35,16 +37,21 @@ def extract_transcript(video_id):
     except Exception as e:
         return f"🚨 Error retrieving transcript: {str(e)}"
 
-# 🧠 Extract keywords from transcript
+# 🧠 Extract keywords
 def extract_keywords(text, num=10):
     ensure_nltk_ready()
     rake = Rake()
     rake.extract_keywords_from_text(text)
     return rake.get_ranked_phrases()[:num]
 
-# 📊 Fetch video metadata using yt-dlp
+# 📊 Get metadata with yt-dlp
 def get_metadata(url):
-    ydl_opts = {'quiet': True, 'skip_download': True}
+    ydl_opts = {
+        'quiet': True,
+        'skip_download': True,
+        'nocheckcertificate': True
+    }
+
     with YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
         return {
@@ -55,7 +62,7 @@ def get_metadata(url):
             "Description": info.get("description", "")[:300] + "..." if info.get("description") else "No description available"
         }
 
-# 🌙 Dark theme styling
+# 🌙 Dark mode styling
 st.set_page_config(page_title="YouTube Transcript + SEO Tool", layout="centered")
 st.markdown("""
     <style>
@@ -74,7 +81,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 🎛️ User Interface
+# 🎛️ App UI
 st.title("📺 YouTube Transcript + SEO Info")
 
 with st.form("url_form"):
