@@ -27,34 +27,31 @@ def get_video_id(url):
 # 📜 Get transcript (if available)
 def extract_transcript(video_id):
     try:
-        # Use the correct API pattern: list_transcripts -> find_transcript -> fetch
-        transcript_list_obj = YouTubeTranscriptApi.list_transcripts(video_id)
+        # Try the simplest approach first - maybe the API is different than expected
+        # Let's see what methods are actually available and try a direct approach
         
-        # Try to find an English transcript first
+        # Method 1: Try direct fetch if it exists
         try:
-            transcript = transcript_list_obj.find_transcript(['en', 'en-US', 'en-GB'])
-        except:
-            # If no English transcript, try to find any manually created transcript
+            transcript_data = YouTubeTranscriptApi.fetch(video_id)
+            formatter = TextFormatter()
+            return formatter.format_transcript(transcript_data)
+        except AttributeError:
+            # Method 2: Try list method
             try:
-                transcript = transcript_list_obj.find_manually_created_transcript(['en', 'en-US', 'en-GB'])
-            except:
-                # If no manually created, try generated transcript
-                try:
-                    transcript = transcript_list_obj.find_generated_transcript(['en', 'en-US', 'en-GB'])
-                except:
-                    # Last resort: get the first available transcript
-                    available_transcripts = list(transcript_list_obj)
-                    if available_transcripts:
-                        transcript = available_transcripts[0]
-                    else:
-                        return "🚨 No transcripts available for this video"
-        
-        # Fetch the actual transcript data
-        transcript_data = transcript.fetch()
-        
-        # Format the transcript
-        formatter = TextFormatter()
-        return formatter.format_transcript(transcript_data)
+                transcript_list_obj = YouTubeTranscriptApi.list(video_id)
+                # If list works, try to get the first transcript
+                if hasattr(transcript_list_obj, '__iter__'):
+                    for transcript in transcript_list_obj:
+                        if hasattr(transcript, 'fetch'):
+                            transcript_data = transcript.fetch()
+                            formatter = TextFormatter()
+                            return formatter.format_transcript(transcript_data)
+                        break
+                return "🚨 Could not fetch transcript data"
+            except AttributeError:
+                # Method 3: Show available methods for debugging
+                available_methods = [method for method in dir(YouTubeTranscriptApi) if not method.startswith('_')]
+                return f"🚨 Available API methods: {', '.join(available_methods)}. Please check documentation."
             
     except Exception as e:
         return f"🚨 Error retrieving transcript: {str(e)}"
