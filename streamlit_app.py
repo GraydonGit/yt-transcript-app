@@ -27,9 +27,17 @@ def get_video_id(url):
 # 📜 Get transcript (if available)
 def extract_transcript(video_id):
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        # Try different approaches based on the API version
+        try:
+            # Method 1: Static method (newer versions)
+            transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+        except AttributeError:
+            # Method 2: Instance method (older versions)
+            api = YouTubeTranscriptApi()
+            transcript_list = api.get_transcript(video_id)
+        
         formatter = TextFormatter()
-        return formatter.format_transcript(transcript)
+        return formatter.format_transcript(transcript_list)
     except Exception as e:
         return f"🚨 Error retrieving transcript: {str(e)}"
 
